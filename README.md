@@ -2,7 +2,7 @@
 
 ## Containers
 
-_An opinionated collection of container images_
+_OxygnCorp's opinionated collection of container images_
 
 </div>
 
@@ -12,113 +12,63 @@ _An opinionated collection of container images_
 
 </div>
 
-This is a trimmed fork of [home-operations/containers](https://github.com/home-operations/containers) that keeps only the images OxygnCorp re-packages for its fleet. It stockpiles nothing else: apps, workflows and shared actions that make no sense here were pruned, so every build targets a single app.
+This repository re-packages the images that the [OxygnCorp fleet](https://github.com/OxygnCorp/home-ops) consumes but that upstream alone can't satisfy — an app graft, a missing distroless runtime or a multi-arch need. Each image is documented below: why it exists, what it grafts onto which source. Today:
 
 | Image | What it does | Source |
 | ----- | ------------ | ------ |
-| [`radar`](https://github.com/OxygnCorp/containers/pkgs/container/radar) | [Radar](https://github.com/skyhook-io/radar) (distroless) with the OpenCode CLI (and ripgrep + the musl runtime they need) grafted in, enabling the OSS "AI investigations" feature inside the Radar pod | [`ghcr.io/skyhook-io/radar`](https://github.com/skyhook-io/radar) + [`ghcr.io/joryirving/opencode`](https://github.com/joryirving/home-ops) |
+| [`radar`](https://github.com/OxygnCorp/containers/pkgs/container/radar) | [Radar](https://github.com/skyhook-io/radar) (distroless, no shell, no libc) with the OpenCode CLI — plus ripgrep and the musl loader/libraries they need — grafted in, so Radar's OSS **AI investigations** feature can spawn an agent inside the Radar pod | [`ghcr.io/skyhook-io/radar`](https://github.com/skyhook-io/radar) + [`ghcr.io/joryirving/opencode`](https://github.com/joryirving/home-ops) |
 
-Welcome to our container images! If you are looking for a container, start by [browsing the GitHub Packages page for this repository's packages](https://github.com/orgs/home-operations/packages?repo_name=containers).
+Browse the collection on the [GitHub Packages page for this repository's packages](https://github.com/orgs/OxygnCorp/packages?repo_name=containers).
 
-## Mission Statement
-
-Our goal is to provide [semantically versioned](https://semver.org/), [rootless](https://rootlesscontaine.rs/), and [multi-architecture](https://www.docker.com/blog/multi-arch-build-and-images-the-simple-way/) containers for various applications.
-
-We adhere to the [KISS principle](https://en.wikipedia.org/wiki/KISS_principle), logging to stdout, maintaining [one process per container](https://testdriven.io/tips/59de3279-4a2d-4556-9cd0-b444249ed31e/), avoiding tools like [s6-overlay](https://github.com/just-containers/s6-overlay), and building all images on top of [Alpine](https://hub.docker.com/_/alpine) or [Ubuntu](https://hub.docker.com/_/ubuntu).
+The pipeline is maintained as a trimmed fork of [home-operations/containers](https://github.com/home-operations/containers): the build machinery (per-app `docker-bake.hcl`, bake metadata actions, release pipeline with attestations and SBOMs) is kept close to upstream, while apps, workflows and shared actions that make no sense here are pruned — every build targets a listed image.
 
 ## Features
 
 ### Tag Immutability
 
-Containers built here do not use immutable tags in the traditional sense, as seen with [linuxserver.io](https://fleet.linuxserver.io/) or [Bitnami](https://bitnami.com/stacks/containers). Instead, we insist on pinning to the `sha256` digest of the image. While this approach is less visually appealing, it ensures functionality and immutability.
+Containers built here do not use immutable tags in the traditional sense, as seen with [linuxserver.io](https://fleet.linuxserver.io/) or [Bitnami](https://bitnami.com/stacks/containers). Instead, consumers are expected to pin the `sha256` digest of the image. While this approach is less visually appealing, it ensures functionality and immutability.
 
-| Container                                                        | Immutable |
-| ---------------------------------------------------------------- | --------- |
-| `ghcr.io/home-operations/home-assistant:rolling`                 | ❌        |
-| `ghcr.io/home-operations/home-assistant:2025.5.1`                | ❌        |
-| `ghcr.io/home-operations/home-assistant:rolling@sha256:8053...`  | ✅        |
-| `ghcr.io/home-operations/home-assistant:2025.5.1@sha256:8053...` | ✅        |
+| Container                                        | Immutable |
+| ------------------------------------------------- | --------- |
+| `ghcr.io/oxygncorp/radar:rolling`                 | ❌        |
+| `ghcr.io/oxygncorp/radar:1.17.0`                  | ❌        |
+| `ghcr.io/oxygncorp/radar:rolling@sha256:8053...`  | ✅        |
+| `ghcr.io/oxygncorp/radar:1.17.0@sha256:8053...`   | ✅        |
 
-_If pinning an image to the `sha256` digest, tools like [Renovate](https://github.com/renovatebot/renovate) can update containers based on digest or version changes._
+_If pinning an image with a `sha256` digest, tools like [Renovate](https://github.com/renovatebot/renovate) — as configured in [`OxygnCorp/home-ops`](https://github.com/OxygnCorp/home-ops) — track the digest and the version together. For grafted images that expose the same upstream twice (a release tag and its registry digest), the release pipeline's renovate grouping rules in `.renovaterc.json5` keep them in lockstep so the digest never lags behind the version bump._
 
-### Rootless
+### Runtime identity
 
-By default the majority of our containers run as a non-root user (`65534:65534`), you are able to change the user/group by updating your configuration files.
-
-#### Docker Compose
+Images run as the user declared by the upstream image: the runtime identity, entrypoint and default command are re-declared explicitly in each graft so nothing is silently inherited. `radar` runs as `nonroot:nonroot` (uid 65532), like its distroless upstream:
 
 ```yaml
-services:
-  home-assistant:
-    image: ghcr.io/home-operations/home-assistant:2025.5.1@sha256:516ae5c85089b3f2960cf2a21dc3c105356969499964fabf0b0358e5f3a7e0a2
-    container_name: home-assistant
-    user: 1000:1000 # The data volume permissions must match this user:group
-    read_only: true # May require mounting in additional dirs as tmpfs
-    tmpfs:
-      - /tmp:rw
-    # ...
+# Kubernetes, excerpt for the radar image
+containers:
+  - name: radar
+    image: ghcr.io/oxygncorp/radar:1.17.0@sha256:<release-digest>
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop: [ALL]
+      readOnlyRootFilesystem: true
 ```
 
-#### Kubernetes
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: home-assistant
-# ...
-spec:
-  # ...
-  template:
-    # ...
-    spec:
-      containers:
-        - name: home-assistant
-          image: ghcr.io/home-operations/home-assistant:2025.5.1@sha256:516ae5c85089b3f2960cf2a21dc3c105356969499964fabf0b0358e5f3a7e0a2
-          securityContext: # May require mounting in additional dirs as emptyDir
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-            readOnlyRootFilesystem: true
-          volumeMounts:
-            - name: tmp
-              mountPath: /tmp
-      # ...
-      securityContext:
-        runAsUser: 1000
-        runAsGroup: 1000
-        fsGroup: 1000 # (Requires CSI support)
-        fsGroupChangePolicy: OnRootMismatch # (Requires CSI support)
-      volumes:
-        - name: tmp
-          emptyDir: {}
-      # ...
-# ...
-```
-
-### Passing Arguments to Applications
-
-Some applications only allow certain configurations via command-line arguments rather than environment variables. For such cases, refer to the Kubernetes documentation on [defining commands and arguments for a container](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/). Then, specify the desired arguments as shown below:
+Passing arguments to the application follows the [Kubernetes documentation](https://kubernetes.io/docs/tasks/inject-data-application/define-command-argument-container/):
 
 ```yaml
 args:
   - --port
-  - "8080"
+  - "9280"
 ```
-
-### Configuration Volume
-
-For applications requiring persistent configuration data, the configuration volume is hardcoded to `/config` within the container. In most cases, this path cannot be changed.
 
 ### Verify Image Signature
 
-These container images are signed using the [attest-build-provenance](https://github.com/actions/attest-build-provenance) action.
+These container images are attested using the [attest-build-provenance](https://github.com/actions/attest-build-provenance) action, with an SBOM alongside.
 
-To verify that the image was built by GitHub CI, use the following command:
+To verify that an image was built by this repository's CI, use the following command:
 
 ```sh
-gh attestation verify --repo home-operations/containers oci://ghcr.io/home-operations/${APP}:${TAG}
+gh attestation verify --repo OxygnCorp/containers oci://ghcr.io/oxygncorp/${APP}:${TAG}
 ```
 
 or by using [cosign](https://github.com/sigstore/cosign):
@@ -126,40 +76,20 @@ or by using [cosign](https://github.com/sigstore/cosign):
 ```sh
 cosign verify-attestation --new-bundle-format --type slsaprovenance1 \
     --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
-    --certificate-identity-regexp "^https://github.com/home-operations/containers/.github/workflows/app-builder.yaml@refs/heads/main" \
-    ghcr.io/home-operations/${APP}:${TAG}
+    --certificate-identity-regexp "^https://github.com/OxygnCorp/containers/.github/workflows/app-builder.yaml@refs/heads/main" \
+    ghcr.io/oxygncorp/${APP}:${TAG}
 ```
 
-### Eschewed Features
+## How it works
 
-This repository does not support multiple "channels" for the same application. For example:
+- **`apps/<name>/docker-bake.hcl`** declares the app's `VERSION` variable with a `renovate:` annotation; Renovate opens and auto-merges updates, which flow into the release pipeline on push (PR CI = lint + sandbox build + container tests; merge = tagged release build with attestations and SBOM).
+- **`apps/<name>/Dockerfile`** pins upstream bases by digest and grafts what the app needs; Renovate tracks the digest pins. When a graft couples the same upstream twice (differently named release tag and registry digest), a **grouping rule** in `.renovaterc.json5` (e.g. `radar`) keeps the VERSION bump and the digest update in the same PR so the published tag always points at a manifest that exists.
+- **`container_test.go`** lives beside each Dockerfile (shared helpers in `tests/`) and runs in the sandbox build on every PR.
 
-- **Prowlarr**, **Radarr**, **Lidarr**, and **Sonarr** only publish the **develop** branch, not the **master** (stable) branch.
-- **qBittorrent** is only published with **LibTorrent 2.x**. See [this issue](https://github.com/home-operations/containers/issues/848) for more information.
+### Adding an image
 
-This approach ensures consistency and focuses on streamlined builds.
-
-## Contributing
-
-We encourage the use of official upstream container images whenever possible. However, contributing to this repository might make sense if:
-
-- The upstream application is **actively maintained**.
-- **And** one of the following applies:
-  - no official image exists.
-  - the official image does not support **multi-architecture builds**.
-  - the official image uses tools like **s6-overlay**, **gosu**, or other unconventional initialization mechanisms.
-  - does not tag releases.
-
-## Deprecations
-
-Containers in this repository may be deprecated for the following reasons:
-
-1. The upstream application is **no longer actively maintained**.
-2. An **official upstream container exists** that aligns with this repository's mission statement.
-3. The **maintenance burden** is unsustainable, such as frequent build failures or instability.
-
-**Note**: Deprecated containers will be announced with a release and remain available in the registry for 6 months before removal.
+Consider adding an app when the upstream application is actively maintained **and** one of the following applies: no official image matches the fleet's constraints (distroless/static base, non-root by default, versioned tags), or the graft unlocks a fleet capability. The pipeline is app-agnostic: adding an app is just `apps/<name>/` (`Dockerfile`, `docker-bake.hcl`, `container_test.go`) plus a renovate grouping rule when the graft couples a version with a digest. An image that becomes unmaintained or unsustainable can be dropped from the listing above and from the build; published images remain available in the registry.
 
 ## Credits
 
-This repository draws inspiration and ideas from the home-ops community, [hotio.dev](https://hotio.dev/), and [linuxserver.io](https://www.linuxserver.io/) contributors.
+This repository draws inspiration and ideas from [home-operations/containers](https://github.com/home-operations/containers), which produces the original form of the pipeline. Fleet-side conventions beyond the registry live in [`OxygnCorp/home-ops`](https://github.com/OxygnCorp/home-ops) (branch + PR flow, `flate`-validated GitOps, digest-pinned images in every consuming container).
