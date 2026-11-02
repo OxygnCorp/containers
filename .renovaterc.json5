@@ -53,6 +53,16 @@
   },
   packageRules: [
     {
+      // The Radar graft pins two views of the same upstream dependency: the
+      // Dockerfile FROM (tag + registry digest, tracked by the docker
+      // datasource) and the VERSION variable in apps/radar/docker-bake.hcl
+      // (tracked by the github-releases custom manager). Group them so the
+      // grafted image always ships a tag and a digest that exist in lockstep.
+      description: ["Group Radar graft version + digest updates"],
+      matchDepNames: ["skyhook-io/radar", "ghcr.io/skyhook-io/radar"],
+      groupName: "radar",
+    },
+    {
       description: ["Release Rules for App Updates"],
       addLabels: ["app/{{parentDir}}"],
       additionalBranchPrefix: "{{parentDir}}-",

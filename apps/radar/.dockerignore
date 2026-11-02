@@ -1,0 +1,4 @@
+# NOTE: file automatically copied each app's directory during build. This
+# graft only builds from --from stages: nothing is needed from the build
+# context, so everything is excluded.
+/*
