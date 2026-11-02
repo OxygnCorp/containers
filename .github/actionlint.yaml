@@ -1,0 +1,4 @@
+# https://actionlint.io/docs/usage/configuration
+# Custom self-hosted runner labels provided by the `containers-runner` scale set.
+runner-label:
+  - containers-runner

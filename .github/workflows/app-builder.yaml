@@ -218,7 +218,6 @@ jobs:
       packages: write
     env:
       APP: ${{ inputs.app }}
-      REPO_OWNER: ${{ steps.owner.outputs.owner }}
     outputs:
       digest: ${{ steps.digest.outputs.digest }}
     steps:
@@ -252,6 +251,8 @@ jobs:
 
       - name: Create Manifest List and Push
         working-directory: ${{ runner.temp }}/digests
+        env:
+          REPO_OWNER: ${{ steps.owner.outputs.owner }}
         run: |
           IMAGE="ghcr.io/${REPO_OWNER}/${APP}"
           docker buildx imagetools create \
@@ -259,12 +260,16 @@ jobs:
               $(printf "${IMAGE}@sha256:%s " *)
 
       - name: Inspect Image
+        env:
+          REPO_OWNER: ${{ steps.owner.outputs.owner }}
         run: |
           TAG=$(jq --raw-output '.target."docker-metadata-action".args.DOCKER_META_VERSION' "${RUNNER_TEMP}/docker-metadata-action-bake.json")
           docker buildx imagetools inspect "ghcr.io/${REPO_OWNER}/${APP}:${TAG}"
 
       - name: Export Digest
         id: digest
+        env:
+          REPO_OWNER: ${{ steps.owner.outputs.owner }}
         run: |
           TAG=$(jq --raw-output '.target."docker-metadata-action".args.DOCKER_META_VERSION' "${RUNNER_TEMP}/docker-metadata-action-bake.json")
           DIGEST=$(docker buildx imagetools inspect "ghcr.io/${REPO_OWNER}/${APP}:${TAG}" --format '{{ json . }}' | jq --raw-output '.manifest.digest')
@@ -284,7 +289,6 @@ jobs:
       packages: write
     env:
       APP: ${{ inputs.app }}
-      REPO_OWNER: ${{ steps.owner.outputs.owner }}
       DIGEST: ${{ needs.merge.outputs.digest }}
     steps:
       # GHCR only accepts lowercase path components; the org slug is
@@ -319,6 +323,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ steps.owner.outputs.owner }}
         run: |
           gh attestation verify --repo "$REPO" "oci://ghcr.io/${REPO_OWNER}/${APP}@${DIGEST}"
 
