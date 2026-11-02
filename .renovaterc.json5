@@ -1,7 +1,29 @@
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["github>home-operations/renovate-config"],
+  extends: [
+    "config:recommended",
+    "docker:enableMajor",
+    ":dependencyDashboard",
+    ":disableRateLimiting",
+    ":timezone(Europe/Paris)",
+    "helpers:pinGitHubActionDigestsToSemver",
+  ],
   schedule: ["at any time"],
+  configMigration: true,
+  // Renovate v44+ defaults to timestamp-required for minimumReleaseAge, which
+  // permanently pends docker digest updates from registries that provide no
+  // publish timestamp (ghcr.io, quay — anything non-Docker Hub provides none,
+  // for tags as well as digests). Keep automerge branches viable.
+  // Trade-off: those updates skip the quarantine entirely — the required CI
+  // is the remaining guard.
+  minimumReleaseAgeBehaviour: "timestamp-optional",
+  logLevelRemap: [
+    {
+      matchMessage: "/Some .+ did not have a releaseTimestamp, but as we're running with minimumReleaseAgeBehaviour=timestamp-optional, proceeding/",
+      newLogLevel: "info",
+    },
+  ],
+  automergeStrategy: "squash",
   customManagers: [
     {
       customType: "regex",
@@ -73,10 +95,60 @@
       semanticCommitType: "release",
     },
     {
+      // CI (Go container tests + multi-arch build) must be green: automerge
+      // via PR with github native auto-merge, never branch-push.
       description: ["Auto-merge App Updates"],
-      matchFileNames: ["**/docker-bake.hcl"],
+      matchFileNames: ["**/docker-bake.hcl", "**/Dockerfile"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
       automerge: true,
+      automergeType: "pr",
       ignoreTests: false,
+      minimumReleaseAge: "1 hour",
+    },
+    {
+      // Rolling builds (servarr/sonarr develop & nightly tracks) are never
+      // stable releases: keep them out of automerge, they always get a
+      // human-reviewed PR. Must come after the "Auto-merge App Updates" rule.
+      description: ["Never auto-merge rolling servarr/sonarr builds"],
+      matchDatasources: [
+        "custom.servarr-develop",
+        "custom.servarr-nightly",
+        "custom.sonarr-develop",
+      ],
+      automerge: false,
+    },
+    {
+      // CI runs against the PR anyway, so branch auto-merge does not save
+      // anything; keep a human-visible audit trail in PR history.
+      description: ["Auto-merge GitHub Actions minor/patch/digest"],
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: true,
+      // Supply-chain buffer: only actions that have been published for days.
+      minimumReleaseAge: "3 days",
+    },
+    {
+      // Official actions/* and renovatebot/* images: trusted enough for
+      // near-zero quarantine window. Only release-type updates; majors,
+      // pins and everything else keep the 3-day buffer above.
+      description: ["Fast-track GitHub Actions from trusted publishers"],
+      matchManagers: ["github-actions"],
+      matchPackageNames: ["/^actions\\//", "/^renovatebot\\//"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
+      minimumReleaseAge: "1 minute",
+    },
+    {
+      // Renovate merges these on GitHub native auto-merge WITHOUT waiting
+      // for any status check (ignoreTests) — the only guard is branch
+      // protection on main (required checks). Keep that enabled.
+      description: ["Auto-merge mise tools minor/patch updates"],
+      matchManagers: ["mise"],
+      matchUpdateTypes: ["minor", "patch"],
+      automerge: true,
+      automergeType: "pr",
+      ignoreTests: true,
     },
     {
       description: [
@@ -87,16 +159,21 @@
       prPriority: -1,
     },
     {
+      // Fleet automerge policy applies to these two too: no unbounded types.
       description: ["Auto-merge esphome-device-builder Updates"],
       matchDepNames: ["esphome-device-builder"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
       automerge: true,
       ignoreTests: false,
+      minimumReleaseAge: "1 hour",
     },
     {
       description: ["Auto-merge tf-runner Updates"],
       matchDepNames: ["ghcr.io/flux-iac/tf-runner"],
+      matchUpdateTypes: ["minor", "patch", "digest"],
       automerge: true,
       ignoreTests: false,
+      minimumReleaseAge: "1 hour",
     },
     {
       description: ["Allowed Ubuntu Version for Base Images"],
@@ -151,6 +228,14 @@
       matchFileNames: ["apps/nzbhydra2/Dockerfile"],
       matchPackageNames: ["/amazoncorretto/"],
       allowedVersions: "/17-alpine3\\.24/",
+    },
+    {
+      // Defense in depth: nothing ever auto-merges a major bump, whatever the
+      // rules above matched. Major bumps keep going through manual review.
+      // MUST stay the last rule: later rules override earlier ones.
+      description: ["Never auto-merge major updates"],
+      matchUpdateTypes: ["major"],
+      automerge: false,
     },
   ],
 }
