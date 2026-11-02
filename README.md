@@ -8,11 +8,15 @@ _An opinionated collection of container images_
 
 <div align="center">
 
-![GitHub Repo stars](https://img.shields.io/github/stars/home-operations/containers?style=for-the-badge)
-![GitHub forks](https://img.shields.io/github/forks/home-operations/containers?style=for-the-badge)
-![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/home-operations/containers/release.yaml?style=for-the-badge&label=Release)
+![GitHub Workflow Status (with event)](https://img.shields.io/github/actions/workflow/status/OxygnCorp/containers/release.yaml?style=for-the-badge&label=Release)
 
 </div>
+
+This is a trimmed fork of [home-operations/containers](https://github.com/home-operations/containers) that keeps only the images OxygnCorp re-packages for its fleet. It stockpiles nothing else: apps, workflows and shared actions that make no sense here were pruned, so every build targets a single app.
+
+| Image | What it does | Source |
+| ----- | ------------ | ------ |
+| [`radar`](https://github.com/OxygnCorp/containers/pkgs/container/radar) | [Radar](https://github.com/skyhook-io/radar) (distroless) with the OpenCode CLI (and ripgrep + the musl runtime they need) grafted in, enabling the OSS "AI investigations" feature inside the Radar pod | [`ghcr.io/skyhook-io/radar`](https://github.com/skyhook-io/radar) + [`ghcr.io/joryirving/opencode`](https://github.com/joryirving/home-ops) |
 
 Welcome to our container images! If you are looking for a container, start by [browsing the GitHub Packages page for this repository's packages](https://github.com/orgs/home-operations/packages?repo_name=containers).
 
