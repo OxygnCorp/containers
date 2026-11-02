@@ -16,7 +16,7 @@ concurrency:
 jobs:
   prepare:
     name: Prepare
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     outputs:
@@ -41,7 +41,9 @@ jobs:
 
   go-check:
     name: Go Compile & Vet
-    runs-on: ubuntu-26.04
+    # GH-hosted: the runner image lacks libc dev headers (cgo test build
+    # fails on stdlib.h); docker is not needed for this job.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
@@ -51,7 +53,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Mise
-        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
           experimental: true
           install_args: --locked
@@ -72,7 +74,7 @@ jobs:
 
   droast:
     name: Droast
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     steps:
@@ -82,7 +84,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Mise
-        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
           experimental: true
           install_args: --locked
@@ -113,7 +115,7 @@ jobs:
 
   workflow-lint:
     name: Workflow Lint
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     steps:
@@ -123,7 +125,7 @@ jobs:
           persist-credentials: false
 
       - name: Setup Mise
-        uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+        uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
         with:
           install: false
 
@@ -148,7 +150,7 @@ jobs:
       - go-check
       - prepare
       - workflow-lint
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions: {}
     steps:
       # cancelled counts as failed: !cancelled() above still runs this job when

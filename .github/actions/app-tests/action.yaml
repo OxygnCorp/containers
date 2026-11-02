@@ -15,7 +15,7 @@ runs:
   using: composite
   steps:
     - name: Setup Mise
-      uses: jdx/mise-action@8418fedb1110381a0d3ba51a7a415d7c1b884550 # v5.2.2
+      uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # v5.2.4
       with:
         experimental: true
         install_args: --locked
@@ -28,6 +28,12 @@ runs:
           ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
 
+    - name: Install libc Dev Headers
+      shell: bash
+      run: |
+        # cgo dependencies (sqlite driver) need libc dev headers; upstream's
+        # self-hosted image ships them, the lean containers-runner image does not.
+        command -v sudo > /dev/null && sudo apt-get update -q && sudo apt-get install -y -q libc6-dev || echo "no sudo; assuming headers present"
     - name: Run Tests
       shell: bash
       env:
