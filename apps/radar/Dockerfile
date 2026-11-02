@@ -30,3 +30,5 @@ USER nonroot:nonroot
 # being explicit removes the runtime-identity drift risk.
 ENTRYPOINT ["/radar", "--listen-address=0.0.0.0"]
 CMD ["--no-browser"]
+
+# test build for libc dev headers fix

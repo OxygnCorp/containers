@@ -28,6 +28,12 @@ runs:
           ~/go/pkg/mod
         key: ${{ runner.os }}-go-${{ hashFiles('go.sum') }}
 
+    - name: Install libc Dev Headers
+      shell: bash
+      run: |
+        # cgo dependencies (sqlite driver) need libc dev headers; upstream's
+        # self-hosted image ships them, the lean containers-runner image does not.
+        command -v sudo > /dev/null && sudo apt-get update -q && sudo apt-get install -y -q libc6-dev || echo "no sudo; assuming headers present"
     - name: Run Tests
       shell: bash
       env:
