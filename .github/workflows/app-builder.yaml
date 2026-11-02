@@ -46,6 +46,14 @@ jobs:
         with:
           persist-credentials: false
 
+      # GHCR only accepts lowercase path components; the org slug is
+      # OxygnCorp, so normalize before building any registry reference.
+      - name: Lowercase Owner
+        id: owner
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Check For Existing App
         uses: $/.github/actions/app-exists
         id: app-exists
@@ -72,7 +80,7 @@ jobs:
         with:
           flavor: latest=false
           images: |
-            ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+            ghcr.io/${{ steps.owner.outputs.owner }}/${{ inputs.app }}
           tags: |
             type=semver,pattern={{version}},value=${{ steps.app-versions.outputs.semantic }},enable=${{ steps.app-versions.outputs.is-valid-semver && inputs.release }}
             type=semver,pattern={{major}}.{{minor}},value=${{ steps.app-versions.outputs.semantic }},enable=${{ steps.app-versions.outputs.is-valid-semver && inputs.release }}
@@ -124,6 +132,14 @@ jobs:
         with:
           app: ${{ inputs.app }}
 
+      # GHCR only accepts lowercase path components; the org slug is
+      # OxygnCorp, so normalize before building any registry reference.
+      - name: Lowercase Owner
+        id: owner
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -148,18 +164,18 @@ jobs:
             ./docker-bake.hcl
             cwd://${{ runner.temp }}/docker-metadata-action-bake.json
           set: |
-            *.args.VENDOR=${{ github.repository_owner }}
-            *.cache-from=${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max', github.repository_owner, inputs.app, steps.target.outputs.arch) }}
-            *.cache-to=${{ inputs.release && format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max,compression=zstd,force-compression=true', github.repository_owner, inputs.app, steps.target.outputs.arch) || '' }}
+            *.args.VENDOR=${{ steps.owner.outputs.owner }}
+            *.cache-from=${{ format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max', steps.owner.outputs.owner, inputs.app, steps.target.outputs.arch) }}
+            *.cache-to=${{ inputs.release && format('type=registry,ref=ghcr.io/{0}/build_cache:{1}-{2},mode=max,compression=zstd,force-compression=true', steps.owner.outputs.owner, inputs.app, steps.target.outputs.arch) || '' }}
             *.labels.org.opencontainers.image.title=${{ inputs.app }}
-            *.labels.org.opencontainers.image.url=https://ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+            *.labels.org.opencontainers.image.url=https://ghcr.io/${{ steps.owner.outputs.owner }}/${{ inputs.app }}
             *.labels.org.opencontainers.image.version=${{ steps.app-options.outputs.version }}
             *.labels.org.opencontainers.image.revision=${{ github.sha }}
-            *.labels.org.opencontainers.image.vendor=${{ github.repository_owner }}
+            *.labels.org.opencontainers.image.vendor=${{ steps.owner.outputs.owner }}
             *.no-cache=${{ inputs.no-cache }}
-            *.output=${{ inputs.release && format('type=image,name=ghcr.io/{0}/{1},push-by-digest=true,name-canonical=true,push=true,compression=zstd,force-compression=true', github.repository_owner, inputs.app) || 'type=docker' }}
+            *.output=${{ inputs.release && format('type=image,name=ghcr.io/{0}/{1},push-by-digest=true,name-canonical=true,push=true,compression=zstd,force-compression=true', steps.owner.outputs.owner, inputs.app) || 'type=docker' }}
             *.platform=${{ matrix.platform }}
-            *.tags=${{ ! inputs.release && format('ghcr.io/{0}/{1}:sandbox', github.repository_owner, inputs.app) || '' }}
+            *.tags=${{ ! inputs.release && format('ghcr.io/{0}/{1}:sandbox', steps.owner.outputs.owner, inputs.app) || '' }}
           source: ./apps/${{ inputs.app }}
           targets: image
 
@@ -186,7 +202,7 @@ jobs:
         uses: $/.github/actions/app-tests
         with:
           app: ${{ inputs.app }}
-          image: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}:sandbox
+          image: ghcr.io/${{ steps.owner.outputs.owner }}/${{ inputs.app }}:sandbox
 
   merge:
     if: ${{ inputs.release }}
@@ -199,7 +215,7 @@ jobs:
       packages: write
     env:
       APP: ${{ inputs.app }}
-      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_OWNER: ${{ steps.owner.outputs.owner }}
     outputs:
       digest: ${{ steps.digest.outputs.digest }}
     steps:
@@ -215,6 +231,14 @@ jobs:
           path: ${{ runner.temp }}/digests
           pattern: ${{ inputs.app }}-digests-*
           merge-multiple: true
+
+      # GHCR only accepts lowercase path components; the org slug is
+      # OxygnCorp, so normalize before building any registry reference.
+      - name: Lowercase Owner
+        id: owner
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
@@ -257,9 +281,17 @@ jobs:
       packages: write
     env:
       APP: ${{ inputs.app }}
-      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_OWNER: ${{ steps.owner.outputs.owner }}
       DIGEST: ${{ needs.merge.outputs.digest }}
     steps:
+      # GHCR only accepts lowercase path components; the org slug is
+      # OxygnCorp, so normalize before building any registry reference.
+      - name: Lowercase Owner
+        id: owner
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "owner=${OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Login to GitHub Container Registry
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
@@ -271,13 +303,13 @@ jobs:
         uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
         with:
           dependency-snapshot: true
-          image: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
+          image: ghcr.io/${{ steps.owner.outputs.owner }}/${{ inputs.app }}@${{ needs.merge.outputs.digest }}
 
       - name: Attestation
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
           push-to-registry: true
-          subject-name: ghcr.io/${{ github.repository_owner }}/${{ inputs.app }}
+          subject-name: ghcr.io/${{ steps.owner.outputs.owner }}/${{ inputs.app }}
           subject-digest: ${{ needs.merge.outputs.digest }}
 
       - name: Verify Attestation
