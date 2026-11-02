@@ -41,7 +41,9 @@ jobs:
 
   go-check:
     name: Go Compile & Vet
-    runs-on: containers-runner
+    # GH-hosted: the runner image lacks libc dev headers (cgo test build
+    # fails on stdlib.h); docker is not needed for this job.
+    runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
