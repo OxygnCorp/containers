@@ -32,7 +32,7 @@ permissions:
 jobs:
   prepare:
     name: Prepare
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     outputs:
@@ -60,7 +60,7 @@ jobs:
     name: Get Changed Apps
     needs:
       - prepare
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     outputs:
@@ -107,7 +107,7 @@ jobs:
     name: Build Success
     needs:
       - build
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions: {}
     steps:
       # cancelled counts as failed: !cancelled() above still runs this job when

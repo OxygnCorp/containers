@@ -16,7 +16,7 @@ concurrency:
 jobs:
   prepare:
     name: Prepare
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     outputs:
@@ -41,7 +41,7 @@ jobs:
 
   go-check:
     name: Go Compile & Vet
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     steps:
@@ -72,7 +72,7 @@ jobs:
 
   droast:
     name: Droast
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     steps:
@@ -113,7 +113,7 @@ jobs:
 
   workflow-lint:
     name: Workflow Lint
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions:
       contents: read
     steps:
@@ -148,7 +148,7 @@ jobs:
       - go-check
       - prepare
       - workflow-lint
-    runs-on: ubuntu-26.04
+    runs-on: containers-runner
     permissions: {}
     steps:
       # cancelled counts as failed: !cancelled() above still runs this job when
