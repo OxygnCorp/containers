@@ -6,7 +6,7 @@ variable "APP" {
 
 variable "VERSION" {
   // renovate: datasource=github-releases depName=skyhook-io/radar
-  default = "1.17.0"
+  default = "1.19.0"
 }
 
 variable "SOURCE" {

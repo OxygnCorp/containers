@@ -11,7 +11,7 @@
 # OpenCode upgrade — verify with `ldd` on the binaries), add a COPY here.
 FROM ghcr.io/joryirving/opencode:2.2.5@sha256:355c36f0f57828546e51cda5011ebc31b03dfbf15f74594c7515b793dca04038 AS opencode
 
-FROM ghcr.io/skyhook-io/radar:1.17.0@sha256:480e11ae31dcf4f084cb006a23e9b661054ef7254f2410a29b2cc1911969b371 AS radar
+FROM ghcr.io/skyhook-io/radar:1.19.0@sha256:e8dc4d847916f66833f6ec9b18aaeb426257063572693c3c8866ec43f8bca7dc AS radar
 
 FROM radar
 
