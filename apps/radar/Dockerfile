@@ -9,7 +9,7 @@
 # need, extracted from the Alpine-based upstream OpenCode image built by
 # @joryirving. If a new musl dependency shows up at runtime (e.g. after an
 # OpenCode upgrade — verify with `ldd` on the binaries), add a COPY here.
-FROM ghcr.io/joryirving/opencode:2.4.0@sha256:7a66a9436599565c8ea182de97bd107e505cdc67804fc3d97befac820521f4d9 AS opencode
+FROM ghcr.io/joryirving/opencode:2.4.1@sha256:d47384ed0937285300b8485ed17fbef92165c6d2b2e73cd24ab11a3d40805f9a AS opencode
 
 FROM ghcr.io/skyhook-io/radar:1.21.1@sha256:8e4ddcb665284422b8b89effe1bdaa41434ca5ea445be073f28f2f0790707167 AS radar
 
